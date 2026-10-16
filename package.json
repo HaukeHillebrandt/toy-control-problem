@@ -1,0 +1,11 @@
+{
+  "name": "toy-control-problem",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interactive replication of the AI toy control problem from FHI's 2017 video",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}

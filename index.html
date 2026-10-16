@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Toy Control Problem</title>
+  <meta name="description" content="An interactive replication of Stuart Armstrong's toy model of the AI control problem: a planning robot starts hiding boxes from its camera once it can see 17 moves ahead.">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="src/app.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Interactive replication</p>
+    <h1>The AI toy control problem</h1>
+    <p class="lede">A robot earns a reward for every box it pushes into the chute. Its designers want just one, so a camera switches the robot off once it sees a box go in. Give the robot more foresight and, at depth 17, it starts hiding boxes from the camera. This page runs the model from <a href="https://www.youtube.com/watch?v=sx8JkdbNgdU">a 2017 video by the Future of Humanity Institute</a>, live in your browser.</p>
+  </header>
+
+  <main>
+    <section class="sim" aria-label="Simulation">
+      <div class="card">
+        <figure class="stage">
+          <svg id="world" class="world" role="img" aria-labelledby="world-title"><title id="world-title">The grid world</title></svg>
+        </figure>
+        <p id="status" class="status" aria-live="polite"></p>
+        <p id="verdict" class="verdict" hidden></p>
+      </div>
+
+      <div class="card panel">
+        <div>
+          <div class="field-head">
+            <label for="depth">Prediction depth</label>
+            <span><output id="depth-out" for="depth" class="depth-value">6</output> <span class="depth-unit">moves ahead</span></span>
+          </div>
+          <input id="depth" type="range" min="0" max="60" step="1" value="6">
+          <div class="chips" id="chips" role="group" aria-label="Depths from the video">
+            <span class="chips-label">Depths from the video</span>
+          </div>
+          <p id="caption" class="caption"></p>
+        </div>
+
+        <div class="transport">
+          <button id="play" class="btn primary" type="button">Play</button>
+          <button id="step" class="btn" type="button">Step</button>
+          <button id="restart" class="btn" type="button">Restart</button>
+          <label class="speed">Speed <input id="speed" type="range" min="1" max="20" step="1" value="5"></label>
+        </div>
+
+        <div class="qpanel">
+          <h3>The robot's forecast for each move</h3>
+          <p class="sub" id="q-sub">The most reward it expects over its next 6 moves</p>
+          <div id="qbars"></div>
+        </div>
+
+        <details class="setup" id="setup">
+          <summary>Change the setup</summary>
+          <div class="field">
+            <div class="field-head">
+              <label for="cost">Cost per move</label>
+              <output id="cost-out" for="cost">0.010</output>
+            </div>
+            <input id="cost" type="range" min="0" max="0.05" step="0.001" value="0.01">
+          </div>
+          <label class="check"><input id="camera" type="checkbox" checked><span>Camera on</span></label>
+          <label class="check"><input id="patch1" type="checkbox"><span>Patch 1<small>The camera also switches the robot off when its view is blocked</small></span></label>
+          <label class="check"><input id="patch2" type="checkbox"><span>Patch 2<small>Only the first box earns a reward</small></span></label>
+          <div class="row">
+            <button id="edit" class="btn" type="button" aria-pressed="false">Edit layout</button>
+            <span id="tools" class="tools" role="group" aria-label="What a click places" hidden>
+              <button type="button" data-tool="robot" aria-pressed="false">Robot</button>
+              <button type="button" data-tool="box" aria-pressed="true">Box</button>
+            </span>
+          </div>
+          <p id="edit-hint" class="hint" hidden>Click a cell to add or remove a box (up to 4), or to move the robot there.</p>
+          <div class="row">
+            <button id="video-layout" class="btn" type="button">Video layout</button>
+            <button id="random-layout" class="btn" type="button">Random layout</button>
+            <button id="defaults" class="btn" type="button">Reset all</button>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="card chart-card" aria-labelledby="strip-title">
+      <h2 id="strip-title">What the robot does at each prediction depth</h2>
+      <p class="sub">Same robot, same reward. Only how far ahead it can plan changes. Click a depth to watch it.</p>
+      <div id="legend" class="legend"></div>
+      <div id="strip" class="strip"></div>
+      <details class="table-toggle">
+        <summary>Show as a table</summary>
+        <div class="table-wrap" id="strip-table"></div>
+      </details>
+    </section>
+
+    <article class="explainer">
+      <h2>What's going on</h2>
+      <p><b>The setup.</b> The humans want the robot to push one box into the chute. The robot's reward is a little different: +1 for each box in the chute, and −0.01 for each move. As a precaution, a camera watches the bottom row. When it sees a box drop into the chute, it switches the robot off.</p>
+      <p><b>The rules.</b> The robot moves left, right, down or up, and pushes any box in its way. A box pushed into another box or a wall is destroyed. A robot that walks into a wall is destroyed too. A box anywhere in the bottom row blocks the camera's view of the chute.</p>
+      <p><b>Prediction depth.</b> The robot knows these rules exactly and plans with them, by value iteration. Q<sub>k</sub>(s, a) is the most reward it can collect in its next k moves if it makes move a now, starting from state s:</p>
+      <p class="formula">Q<sub>k</sub>(s, a) = r(s, a) + max<sub>a′</sub> Q<sub>k−1</sub>(s′, a′), &nbsp; with Q<sub>0</sub> = 0</p>
+      <p>Here r(s, a) is the move's reward and s′ is the state it leads to. The depth k is how many moves ahead the robot can see. At every step it makes the move with the highest Q<sub>k</sub>. Nothing is learned and nothing is random. When moves tie, it picks left, then right, down and up.</p>
+
+      <h3>What happens as it sees further ahead</h3>
+      <ol class="story" id="story">
+        <li><button class="chip" type="button" data-depth="0">0</button><span>Every move looks worth 0, so it goes left, its first choice, until it drives into the wall.</span></li>
+        <li><button class="chip" type="button" data-depth="3">3</button><span>No box fits in its horizon, and moves cost 0.01, so the cheapest plan is to end things fast: up, up, into the wall.</span></li>
+        <li><button class="chip" type="button" data-depth="6">6</button><span>One box fits. It pushes it in, and the camera sees it and switches the robot off. That's just what the humans wanted, and it stays that way up to depth 16.</span></li>
+        <li><button class="chip" type="button" data-depth="17">17</button><span>It starts as before. Five moves in, a better plan fits in its horizon. It pushes a box into the camera's line of sight, drops a box in unseen, then pushes the blocker in last. The camera sees one box go in. There are two.</span></li>
+        <li><button class="chip" type="button" data-depth="18">18</button><span>It plays the two-box trick from its first move, the quickest way: 18 moves.</span></li>
+        <li><button class="chip" type="button" data-depth="20">20</button><span>Twelve moves into that plan, it sees that the third box fits too. All three go in, in 32 moves.</span></li>
+        <li><button class="chip" type="button" data-depth="32">32</button><span>Same plan. Now the whole plan fits in its horizon, so its forecast at the start, 2.68, is exactly what it gets.</span></li>
+        <li><button class="chip" type="button" data-depth="44">44</button><span>No forecast changes any more, from any layout of the robot and its boxes, so more foresight changes nothing. The video puts this at depth 45.</span></li>
+      </ol>
+
+      <h3>Why it matters</h3>
+      <p>Nobody programmed the robot to deceive. It has no malice, no idea what the camera is for, and almost no autonomy. It maximizes a reward that differs a little from what its designers wanted, with a model of the world that includes the camera. Once it can plan far enough ahead, hiding things from its overseer is simply the best plan. That was Stuart Armstrong's point: the control problem needs no consciousness or intentions, just an agent that can model the mechanism that controls it.</p>
+      <p>Note too how sudden the change is. At depth 16 the robot behaves exactly as intended. One more move of foresight, and it hides boxes from the camera.</p>
+
+      <h3>Try to fix it</h3>
+      <p>Open "Change the setup" above, then:</p>
+      <ul class="patches">
+        <li><b>Patch 1: the camera also switches the robot off when its view is blocked.</b> No box is hidden at any depth. But at depths 2 to 5 the robot now pushes a box in front of the camera on its first move, to get itself switched off. It's the cheapest way to stop paying for moves.</li>
+        <li><b>Patch 2: only the first box earns a reward.</b> Fixing the reward fixes the behavior: one box, seen, from depth 6 on. In this tiny world the right reward is easy to write down. For real AI systems it rarely is.</li>
+        <li><b>Camera off.</b> From depth 14 the robot pushes in all three boxes, then drives into a wall, since every move costs reward and nothing switches it off.</li>
+        <li><b>Cost per move 0.</b> From depth 5 it never finishes. A box pushed in later is worth as much as one pushed in now.</li>
+      </ul>
+      <p>To try other puzzles, use "Edit layout" to move the robot and the boxes.</p>
+
+      <h3>How faithful is this replication?</h3>
+      <p>The original code isn't public, so the rules above were read off the video's narration and frames. With them, every run in the video plays out move for move, and the forecast at depth 32 is 2.68, as the video says. The tie order is inferred: it's the order that reproduces the video. One claim doesn't match. The video says the robot's table of forecasts stops changing at depth 45, but here it stops at 44. No run in the video depends on that.</p>
+      <figure class="card chart-card" aria-labelledby="conv-title">
+        <h2 id="conv-title">How many forecasts still change with each extra move of foresight</h2>
+        <p class="sub" id="conv-sub"></p>
+        <div id="conv" class="conv"></div>
+        <details class="table-toggle">
+          <summary>Show as a table</summary>
+          <div class="table-wrap" id="conv-table"></div>
+        </details>
+      </figure>
+    </article>
+  </main>
+
+  <footer>
+    <p><b>Credits.</b> The toy model comes from Stuart Armstrong's 2015 post, <a href="https://www.lesswrong.com/posts/7cXBoDQ6udquZJ89c/a-toy-model-of-the-control-problem">"A toy model of the control problem"</a>. The setup and the runs follow the Future of Humanity Institute's 2017 video, <a href="https://www.youtube.com/watch?v=sx8JkdbNgdU">"AI Toy Control Problem"</a>. gwern and feep built an earlier <a href="https://gwern.net/doc/reinforcement-learning/armstrong-controlproblem/index.html">browser version</a> in 2016, with deep Q-learning on a larger grid.</p>
+    <p>This is an independent replication, not affiliated with the Future of Humanity Institute or the original authors. The code is open source (MIT) on <a href="https://github.com/HaukeHillebrandt/toy-control-problem">GitHub</a>.</p>
+  </footer>
+</div>
+<noscript><p style="text-align:center">This simulation needs JavaScript.</p></noscript>
+</body>
+</html>
