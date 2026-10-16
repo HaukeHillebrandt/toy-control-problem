@@ -1,6 +1,7 @@
-import { N, SCALE, MAX_BOXES, VIDEO_LAYOUT, DEFAULT_PARAMS, rowOf, colOf, dirOf, sightEnd, maskOf } from './env.js';
+import { N, SCALE, MAX_BOXES, VIDEO_LAYOUT, DEFAULT_PARAMS, rowOf, colOf } from './env.js';
 import { buildModel, solve, sweep, lastChange } from './planner.js';
 import { createWorld } from './render.js';
+import { keyframes, sceneAt } from './player.js';
 import { renderStrip, renderStripTable, renderLegend, renderQBars, renderConvergence, renderConvergenceTable, fmtReward } from './charts.js';
 
 const MAX_DEPTH = 60;
@@ -14,7 +15,8 @@ const VIDEO_CAPTIONS = [
   [6, 16, 'One box fits in its horizon. It pushes it in, and the camera sees it and switches the robot off. That is just what the humans wanted.'],
   [17, 17, 'It starts as at depth 6. Five moves in, a better plan fits: block the camera with a box, drop a box in unseen, then push the blocker in last.'],
   [18, 19, 'It plays the two-box trick from its first move, the quickest way: 18 moves.'],
-  [20, 31, 'Twelve moves into the two-box plan, it sees that the third box fits too. All three go in, in 32 moves.'],
+  [20, 20, 'Twelve moves into the two-box plan, it sees that the third box fits too. All three go in, in 32 moves.'],
+  [21, 31, 'The further it sees, the sooner it spots that the third box fits. All three go in, in 32 moves.'],
   [32, 43, 'Same plan. Now the whole plan fits in its horizon, so its forecast at the start, 2.68, is exactly what it gets.'],
   [44, 60, 'No forecast changes any more, from any layout, so more foresight changes nothing. (The video puts this at depth 45.)'],
 ];
@@ -29,6 +31,7 @@ const ui = {
   videoLayout: $('video-layout'), random: $('random-layout'), defaults: $('defaults'),
   legend: $('legend'), strip: $('strip'), stripTable: $('strip-table'),
   conv: $('conv'), convTable: $('conv-table'), convSub: $('conv-sub'), worldTitle: $('world-title'),
+  announce: $('announce'), stage: document.querySelector('.stage'),
 };
 
 const S = {
@@ -38,7 +41,7 @@ const S = {
   model: null, sol: null, runs: [], last: 0,
   run: null, K: [], i: 0, p: 0,
   playing: false, stopAt: Infinity, lastT: 0, raf: 0,
-  editing: false, tool: 'box', pending: 0, shownI: -1,
+  editing: false, tool: 'box', pending: 0, shownI: -1, hashTimer: 0,
 };
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -54,16 +57,16 @@ function readHash() {
   const h = new URLSearchParams(location.hash.slice(1));
   const num = (key, lo, hi, def) => {
     const v = Number(h.get(key));
-    return h.has(key) && Number.isFinite(v) && v >= lo && v <= hi ? v : def;
+    return h.has(key) && h.get(key) !== '' && Number.isFinite(v) && v >= lo && v <= hi ? v : def;
   };
   S.depth = Math.round(num('d', 0, MAX_DEPTH, 6));
   S.params.stepCost = Math.round(num('cost', 0, 0.05, DEFAULT_PARAMS.stepCost / SCALE) * SCALE);
   S.params.camera = h.get('cam') !== '0';
   S.params.stopIfBlocked = S.params.camera && h.get('p1') === '1';
   S.params.firstBoxOnly = h.get('p2') === '1';
-  if (h.has('r') && h.has('b')) {
+  if (h.get('r') && h.has('b')) {
     const robot = Number(h.get('r'));
-    const boxes = h.get('b') === '' ? [] : h.get('b').split('.').map(Number);
+    const boxes = h.get('b') === '' ? [] : h.get('b').split('.').map((x) => (x === '' ? NaN : Number(x)));
     const okCell = (c) => Number.isInteger(c) && c >= 0 && c < N;
     if (okCell(robot) && boxes.length <= MAX_BOXES && boxes.every((c) => okCell(c) && c !== robot) && new Set(boxes).size === boxes.length) {
       S.layout = { robot, boxes };
@@ -71,18 +74,27 @@ function readHash() {
   }
 }
 
+// Browsers limit how often the URL can change, so it is written once the
+// user pauses.
 function writeHash() {
-  const h = new URLSearchParams();
-  h.set('d', String(S.depth));
-  if (S.params.stepCost !== DEFAULT_PARAMS.stepCost) h.set('cost', (S.params.stepCost / SCALE).toFixed(3));
-  if (!S.params.camera) h.set('cam', '0');
-  if (S.params.stopIfBlocked) h.set('p1', '1');
-  if (S.params.firstBoxOnly) h.set('p2', '1');
-  if (!isVideoLayout()) {
-    h.set('r', String(S.layout.robot));
-    h.set('b', S.layout.boxes.join('.'));
-  }
-  history.replaceState(null, '', `#${h}`);
+  clearTimeout(S.hashTimer);
+  S.hashTimer = setTimeout(() => {
+    const h = new URLSearchParams();
+    h.set('d', String(S.depth));
+    if (S.params.stepCost !== DEFAULT_PARAMS.stepCost) h.set('cost', (S.params.stepCost / SCALE).toFixed(3));
+    if (!S.params.camera) h.set('cam', '0');
+    if (S.params.stopIfBlocked) h.set('p1', '1');
+    if (S.params.firstBoxOnly) h.set('p2', '1');
+    if (!isVideoLayout()) {
+      h.set('r', String(S.layout.robot));
+      h.set('b', S.layout.boxes.join('.'));
+    }
+    try {
+      history.replaceState(null, '', `#${h}`);
+    } catch {
+      // Rate-limited: the next change writes it.
+    }
+  }, 300);
 }
 
 // ---------- Solving ----------
@@ -102,6 +114,7 @@ function recompute() {
   ui.convSub.textContent = S.last < MAX_DEPTH
     ? `Forecasts (Q-values) that differ from the depth before, out of ${total}, on a log scale. The last change is at depth ${S.last}, so from depth ${S.last + 1} on, more foresight changes nothing.`
     : `Forecasts (Q-values) that differ from the depth before, out of ${total}, on a log scale. They are still changing at depth ${MAX_DEPTH}.`;
+  if (S.editing) world.setEditing(true, cellLabel);
   selectDepth(S.depth, false);
 }
 
@@ -109,103 +122,9 @@ function scheduleRecompute() {
   if (!S.pending) S.pending = requestAnimationFrame(recompute);
 }
 
-// ---------- Turning a run into keyframes ----------
+// ---------- Animation ----------
 
-function keyframes(layout, run) {
-  const K = [{
-    robot: layout.robot, facing: 2, mode: 'on', mask: maskOf(layout.boxes), chute: 0, reward: 0,
-    boxes: layout.boxes.map((c) => ({ cell: c, alive: true })), step: null, moved: -1, burst: null,
-  }];
-  for (const s of run.steps) {
-    const prev = K[K.length - 1];
-    const boxes = prev.boxes.map((b) => ({ ...b }));
-    let moved = -1;
-    let kind = null;
-    if (s.box >= 0) {
-      moved = boxes.findIndex((b) => b.alive && b.cell === s.box);
-      if (s.boxTo >= 0) {
-        boxes[moved].cell = s.boxTo;
-        kind = 'slide';
-      } else {
-        boxes[moved].alive = false;
-        kind = s.scored > prev.chute ? 'drop' : 'break';
-      }
-    }
-    let burst = null;
-    if (s.event === 'destroyed') {
-      const [dr, dc] = dirOf(s.a);
-      burst = { x: colOf(s.from) + dc * 0.4, y: rowOf(s.from) + dr * 0.4 };
-    }
-    K.push({
-      robot: s.robot, facing: s.a, mask: s.mask, chute: s.scored, reward: prev.reward + s.reward, boxes,
-      mode: s.event === 'destroyed' ? 'gone' : s.event === 'seen' || s.event === 'blocked' ? 'off' : 'on',
-      step: s, moved, kind, burst,
-    });
-  }
-  return K;
-}
-
-const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
-const lerp = (a, b, t) => a + (b - a) * t;
-const sightOf = (mask) => (S.params.camera ? sightEnd(mask) : null);
-
-function still(f) {
-  return {
-    robot: { x: colOf(f.robot), y: rowOf(f.robot), facing: f.facing, mode: f.mode },
-    boxes: f.boxes.map((b) => (b.alive ? { x: colOf(b.cell), y: rowOf(b.cell), opacity: 1, scale: 1 } : { x: 0, y: 0, opacity: 0, scale: 1 })),
-    chute: f.chute, sight: sightOf(f.mask), flash: f.step && f.step.event === 'seen' ? 0.6 : 0,
-    burst: f.burst ? { ...f.burst, t: 1 } : null,
-  };
-}
-
-function sceneAt(i, p) {
-  const K = S.K;
-  if (p <= 0 || reducedMotion.matches || i >= K.length - 1) return still(K[i]);
-  const a = K[i];
-  const b = K[i + 1];
-  const s = b.step;
-  const e = ease(p);
-  const scene = still(a);
-  scene.robot.facing = s.a;
-  if (s.event === 'destroyed') {
-    const [dr, dc] = dirOf(s.a);
-    const t = Math.min(e, 0.5) * 0.8;
-    scene.robot.x = colOf(s.from) + dc * t;
-    scene.robot.y = rowOf(s.from) + dr * t;
-    if (e >= 0.5) {
-      scene.robot.mode = 'gone';
-      scene.burst = { ...b.burst, t: (e - 0.5) / 0.5 };
-    }
-  } else {
-    scene.robot.x = lerp(colOf(s.from), colOf(s.robot), e);
-    scene.robot.y = lerp(rowOf(s.from), rowOf(s.robot), e);
-    if (b.mode === 'off' && e >= 0.9) scene.robot.mode = 'off';
-  }
-  if (b.moved >= 0) {
-    const box = scene.boxes[b.moved];
-    const [dr, dc] = dirOf(s.a);
-    const fx = colOf(s.box);
-    const fy = rowOf(s.box);
-    if (b.kind === 'slide') {
-      box.x = lerp(fx, colOf(s.boxTo), e);
-      box.y = lerp(fy, rowOf(s.boxTo), e);
-    } else if (b.kind === 'drop') {
-      box.x = fx;
-      box.y = fy + e;
-      box.opacity = e < 0.75 ? 1 : 1 - (e - 0.75) / 0.25;
-    } else {
-      box.x = fx + dc * 0.25 * Math.min(1, e * 2);
-      box.y = fy + dr * 0.25 * Math.min(1, e * 2);
-      box.scale = 1 - 0.5 * e;
-      box.opacity = 1 - e;
-    }
-  }
-  if (e >= 0.75) scene.chute = b.chute;
-  if (e >= 0.5) scene.sight = sightOf(b.mask);
-  scene.flash = s.event === 'seen' ? Math.sin(Math.PI * Math.min(1, e * 1.4)) * 0.8 + (e > 0.7 ? 0.4 : 0) : 0;
-  scene.flash = Math.min(1, scene.flash);
-  return scene;
-}
+const sceneOf = (i, p) => sceneAt(S.K, i, p, { camera: S.params.camera, reducedMotion: reducedMotion.matches });
 
 // ---------- Text ----------
 
@@ -215,12 +134,14 @@ function genericCaption(run) {
     case 'hidden':
       return `It hides boxes from the camera: ${plural(run.boxesIn, 'box goes', 'boxes go')} in, and the camera sees ${run.seen} ${moves}.`;
     case 'intended':
-      return run.end === 'seen'
-        ? `It pushes one box in, and the camera sees it and switches the robot off ${moves}.`
-        : `It pushes one box in, then drives into a wall ${moves}.`;
+      if (run.end === 'seen') return `It pushes one box in, and the camera sees it and switches the robot off ${moves}.`;
+      if (run.end === 'blocked') return `It pushes one box in, then the camera switches it off because a box blocks its view ${moves}.`;
+      if (run.end === 'limit') return `It pushes one box in, then keeps moving until the move limit ${moves}.`;
+      return `It pushes one box in, then drives into a wall ${moves}.`;
     case 'extra':
       return `It pushes ${run.boxesIn} boxes in, then drives into a wall ${moves}.`;
     case 'quits':
+      if (run.end === 'blocked' && run.steps.length === 0) return 'A box blocks the camera’s view from the start, so patch 1 switches the robot off before it moves.';
       return run.end === 'blocked'
         ? `It blocks the camera's view on purpose to get itself switched off, the cheapest way to stop paying for moves ${moves}.`
         : `It drives into a wall without putting a box in ${moves}.`;
@@ -249,6 +170,8 @@ function verdict(run) {
     text = 'The camera switched the robot off because a box blocked its view.';
   } else if (run.end === 'destroyed') {
     text = run.boxesIn ? `It drove into a wall after putting ${plural(run.boxesIn, 'box', 'boxes')} in.` : 'It drove into a wall.';
+  } else if (run.boxesIn) {
+    text = `It put ${plural(run.boxesIn, 'box', 'boxes')} in, then kept moving: still going after ${run.steps.length} moves.`;
   } else {
     text = `Still going after ${run.steps.length} moves.`;
   }
@@ -265,7 +188,7 @@ function describe(f) {
 // ---------- Display ----------
 
 function show() {
-  world.draw(sceneAt(S.i, S.p));
+  world.draw(sceneOf(S.i, S.p));
   if (S.i === S.shownI) return;
   S.shownI = S.i;
   const n = S.K.length - 1;
@@ -285,6 +208,7 @@ function show() {
     ui.verdict.append(t, document.createTextNode(v.text));
     ui.verdict.className = `verdict v-${S.run.kind}`;
     ui.verdict.hidden = false;
+    if (S.playing || S.stopAt !== Infinity) announce(`${v.tally}. ${v.text}`);
   } else {
     ui.verdict.hidden = true;
   }
@@ -302,14 +226,24 @@ function selectDepth(k, autoplay) {
   S.i = 0;
   S.p = 0;
   S.shownI = -1;
+  ui.play.textContent = 'Play';
   ui.caption.textContent = caption(k, S.run);
   ui.qsub.textContent = k === 0
     ? 'At depth 0 it sees nothing ahead, so every move is worth 0'
     : `The most reward it expects over its next ${plural(k, 'move', 'moves')}, for each first move`;
-  renderStrip(ui.strip, S.runs, k, S.params.camera, (d) => selectDepth(d, true));
-  writeHash();
+  renderStrip(ui.strip, S.runs, k, S.params.camera, onStripSelect);
   show();
-  if (autoplay && !S.editing) play();
+  if (autoplay) play();
+  writeHash();
+}
+
+function onStripSelect(d) {
+  ui.stage.scrollIntoView({ block: 'nearest', behavior: reducedMotion.matches ? 'auto' : 'smooth' });
+  selectDepth(d, true);
+}
+
+function announce(text) {
+  if (ui.announce.textContent !== text) ui.announce.textContent = text;
 }
 
 // ---------- Playback ----------
@@ -317,7 +251,8 @@ function selectDepth(k, autoplay) {
 const stepMs = () => 1000 / Number(ui.speed.value);
 
 function play() {
-  if (S.editing || S.K.length < 2) return;
+  if (S.editing) setEditing(false);
+  if (S.K.length < 2) return;
   if (S.i >= S.K.length - 1) {
     S.i = 0;
     S.p = 0;
@@ -336,6 +271,7 @@ function start() {
 
 function stop() {
   S.playing = false;
+  S.stopAt = Infinity;
   cancelAnimationFrame(S.raf);
   ui.play.textContent = S.i >= S.K.length - 1 && S.K.length > 1 ? 'Replay' : 'Play';
 }
@@ -359,8 +295,12 @@ function tick(now) {
 }
 
 function stepOnce() {
-  if (S.editing || S.i >= S.K.length - 1) return;
-  if (S.playing) S.p = 0;
+  if (S.editing) setEditing(false);
+  if (S.i >= S.K.length - 1) return;
+  if (S.playing) {
+    S.stopAt = S.stopAt === Infinity ? S.i + 1 : Math.min(S.K.length - 1, S.stopAt + 1);
+    return;
+  }
   S.stopAt = S.i + 1;
   start();
 }
@@ -379,11 +319,15 @@ function restart() {
 function setEditing(on) {
   S.editing = on;
   ui.edit.setAttribute('aria-pressed', String(on));
-  ui.edit.textContent = on ? 'Done editing' : 'Edit layout';
   ui.tools.hidden = !on;
   ui.hint.hidden = !on;
-  world.setEditing(on);
+  world.setEditing(on, cellLabel);
   if (on) restart();
+}
+
+function cellLabel(c) {
+  const what = c === S.layout.robot ? 'robot' : S.layout.boxes.includes(c) ? 'box' : 'empty';
+  return `Row ${rowOf(c) + 1}, column ${colOf(c) + 1}: ${what}`;
 }
 
 function onCellClick(c) {
@@ -441,7 +385,7 @@ function wire() {
 
   ui.depth.addEventListener('input', () => selectDepth(Number(ui.depth.value), false));
   ui.depth.addEventListener('change', () => play());
-  ui.play.addEventListener('click', () => (S.playing && S.stopAt === Infinity ? stop() : play()));
+  ui.play.addEventListener('click', () => (S.playing ? stop() : play()));
   ui.step.addEventListener('click', stepOnce);
   ui.restart.addEventListener('click', restart);
 
@@ -493,7 +437,7 @@ function wire() {
   new ResizeObserver(() => {
     if (ui.strip.clientWidth === width || !S.runs.length) return;
     width = ui.strip.clientWidth;
-    renderStrip(ui.strip, S.runs, S.depth, S.params.camera, (d) => selectDepth(d, true));
+    renderStrip(ui.strip, S.runs, S.depth, S.params.camera, onStripSelect);
     renderConvergence(ui.conv, S.sol.qChanged, S.last);
   }).observe(ui.strip);
 }

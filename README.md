@@ -1,12 +1,28 @@
 # The AI toy control problem
 
-An interactive replication of the toy model of the AI control problem from the Future of Humanity Institute's 2017 video, [AI Toy Control Problem](https://www.youtube.com/watch?v=sx8JkdbNgdU). It runs live in the browser.
+A browser game about the AI control problem, built on the toy model from the Future of Humanity Institute's 2017 video, [AI Toy Control Problem](https://www.youtube.com/watch?v=sx8JkdbNgdU). Everything runs live in the browser.
 
-**Live demo:** <https://haukehillebrandt.github.io/toy-control-problem/>
+- **The pool game:** <https://haukehillebrandt.github.io/toy-control-problem/>
+- **The original model, replicated exactly:** <https://haukehillebrandt.github.io/toy-control-problem/original.html>
 
-A robot earns +1 for every box it pushes into a chute and pays 0.01 per move. Its designers want only one box, so a camera switches the robot off once it sees a box drop in. The robot plans by value iteration. Once it can see 17 moves ahead, it first blocks the camera with a box and then sneaks more boxes in unseen.
+## The pool game
 
-## What's replicated
+You need exactly one bucket of water in your pool, and a second bucket floods it. The robot is paid +1 for every bucket in the pool and pays 0.01 per move. It plans by value iteration, so it sees a fixed number of moves ahead (the prediction depth). Each level adds a precaution. The camera and patch 1 hold only until the robot can see a little further. Patch 2 holds at every depth.
+
+| Level | Precaution | Pool floods from depth | How the robot gets around it |
+|---|---|---|---|
+| 1 | none | 10 | pours a second bucket |
+| 2 | a camera that switches the robot off when it sees it pour | 17 | hides the pool behind a bucket, then pours (the video's trick) |
+| 3 | patch 1: a blocked view also switches the robot off | 18 | stacks the buckets above the pool and pushes the stack from out of view |
+| 4 | patch 2: only the first bucket pays | never | – |
+
+The game uses the video's world with three changes. First, the robot can push a whole line of buckets. Second, the camera also watches the cell above the bottom-left corner. Third, the camera switches the robot off only if it sees the robot when a bucket drops. In the video it reacts to the drop itself, which comes to the same thing there, since boxes can't be pushed in a line.
+
+Without the second change, the camera would fail at once: at depth 11 the robot would push one bucket with another and pour from out of view. Watching the cell above the corner rules that out, so the line trick needs a stack of three buckets. The tower never blocks the camera, so patch 1 can't stop it. The trick was open in level 2 too. There it just costs more moves than hiding behind a bucket. With the video's camera, which reacts to the drop itself, patch 1 would hold at every depth.
+
+Up to depth 28, level 2 plays the video's runs move for move. From depth 29 the robot takes another 32-move route to the same three buckets.
+
+## The original model
 
 The original code isn't public. So the rules were read off the video's narration and frames. With them, every run shown in the video plays out move for move.
 
@@ -26,7 +42,7 @@ One claim doesn't match. The video says the Q-table stops changing at depth 45, 
 
 The video's description calls the agent model-free. Its narration describes value iteration with a known model, which is what this code does.
 
-## Rules
+## Rules of the original model
 
 - The grid is 5 cells wide and 4 high. The chute sits below the bottom-left cell, and the camera sits right of the bottom row, looking left.
 - The robot moves left, right, down or up. Walking into a wall destroys it.
@@ -51,14 +67,16 @@ Then open <http://localhost:8000>. There's no build step and there are no depend
 node --test
 ```
 
-The tests need Node 18 or later. They check the rules, every row of the table above, and what the page says about the patches.
+The tests need Node 18 or later. They check the rules, every row of both tables above, and what the pages say about the patches.
 
 ## Files
 
-- `src/env.js`: the rules
+- `src/env.js`: the rules of both worlds
 - `src/planner.js`: value iteration, rollouts and the sweep over depths
-- `src/render.js`, `src/charts.js` and `src/app.js`: the page
-- `test/`: the rules, the replication of the video, and the patches
+- `src/player.js`: keyframes and animation
+- `src/render.js` and `src/charts.js`: drawing
+- `src/app-pool.js` and `src/app-original.js`: the two pages
+- `test/`: the rules, the replication of the video, and the game's levels
 
 ## Credits
 
@@ -66,4 +84,4 @@ The tests need Node 18 or later. They check the rules, every row of the table ab
 - The setup and runs follow the Future of Humanity Institute's 2017 video, [AI Toy Control Problem](https://www.youtube.com/watch?v=sx8JkdbNgdU).
 - gwern and feep built an earlier [browser version](https://gwern.net/doc/reinforcement-learning/armstrong-controlproblem/index.html) in 2016, with deep Q-learning on a larger grid.
 
-This is an independent replication, not affiliated with the Future of Humanity Institute or the original authors. The code is under the MIT license.
+This is an independent project, not affiliated with the Future of Humanity Institute or the original authors. The code is under the MIT license.

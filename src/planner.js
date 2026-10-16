@@ -3,7 +3,7 @@
 // "Prediction depth" k is the number of backups: how many moves ahead the
 // robot can see. At depth k it takes the move with the highest Q_k, every step.
 
-import { N, ACTIONS, MAX_BOXES, step, maskOf } from './env.js';
+import { N, ACTIONS, MAX_BOXES, step, maskOf, viewBlocked } from './env.js';
 
 const A = ACTIONS.length;
 
@@ -130,6 +130,11 @@ export function rollout(model, sol, k, maxSteps = 200) {
   let total = 0;
   let end = 'limit';
   const steps = [];
+  // With patch 1, a layout that starts with the view blocked is switched off
+  // before the robot moves.
+  if (params.camera && params.stopIfBlocked && viewBlocked(mask)) {
+    return { depth: k, steps, moves: '', boxesIn: 0, seen: 0, hidden: 0, end: 'blocked', total: 0, forecast: 0 };
+  }
   for (let t = 0; t < maxSteps; t++) {
     const q = qValues(model, sol, k, model.id(robot, mask, scored));
     const a = argmax(q);

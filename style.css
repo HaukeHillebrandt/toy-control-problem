@@ -4,7 +4,7 @@
   --surface: #fcfcfb;
   --ink: #0b0b0b;
   --ink-2: #52514e;
-  --muted: #898781;
+  --muted: #6f6e68;
   --grid: #e1e0d9;
   --axis: #c3c2b7;
   --border: rgba(11, 11, 11, 0.1);
@@ -31,6 +31,16 @@
   --burst: #e34948;
   --burst-2: #eda100;
   --focus: #2a78d6;
+  --link: #2368c0;
+  --pool-water: #2368c0;
+  --water: #3987e5;
+  --flood: rgba(42, 120, 214, 0.85);
+  --basin: #dfe7ef;
+  --basin-edge: #7d92a6;
+  --pail: #c9d1d9;
+  --pail-edge: #6b7785;
+  --flood-banner: #b84a1f;
+  --sight-edge: rgba(27, 175, 122, 0.75);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -67,6 +77,16 @@
     --burst: #e66767;
     --burst-2: #c98500;
     --focus: #3987e5;
+    --link: #3987e5;
+    --pool-water: #2368c0;
+    --water: #3987e5;
+    --flood: rgba(57, 135, 229, 0.75);
+    --basin: #23303d;
+    --basin-edge: #4b6074;
+    --pail: #6b7785;
+    --pail-edge: #b9c3cd;
+    --flood-banner: #b84a1f;
+    --sight-edge: rgba(25, 158, 112, 0.85);
   }
 }
 
@@ -103,6 +123,16 @@
   --burst: #e66767;
   --burst-2: #c98500;
   --focus: #3987e5;
+  --link: #3987e5;
+  --pool-water: #2368c0;
+  --water: #3987e5;
+  --flood: rgba(57, 135, 229, 0.75);
+  --basin: #23303d;
+  --basin-edge: #4b6074;
+  --pail: #6b7785;
+  --pail-edge: #b9c3cd;
+  --flood-banner: #b84a1f;
+  --sight-edge: rgba(25, 158, 112, 0.85);
 }
 
 * { box-sizing: border-box; }
@@ -117,7 +147,7 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
-a { color: var(--k-intended); text-underline-offset: 2px; }
+a { color: var(--link); text-underline-offset: 2px; }
 
 .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 16px 56px; }
 
@@ -155,7 +185,7 @@ h1 { font-size: clamp(1.65rem, 4.2vw, 2.4rem); line-height: 1.15; margin: 0 0 0.
 .world .robot .antenna { stroke: var(--robot); stroke-width: 0.04; stroke-linecap: round; }
 .world .robot .led { fill: var(--led); }
 .world .robot .closed { stroke: var(--eye); stroke-width: 0.045; stroke-linecap: round; display: none; }
-.world .robot .offtag { fill: var(--ink-2); font-size: 0.19px; font-weight: 700; display: none; letter-spacing: 0.02em; }
+.world .robot .offtag { fill: var(--ink); font-size: 0.22px; font-weight: 800; display: none; letter-spacing: 0.02em; }
 .world .robot.off .body { fill: var(--robot-off); }
 .world .robot.off .antenna { stroke: var(--robot-off); }
 .world .robot.off .led { fill: var(--robot-off); }
@@ -308,7 +338,8 @@ details.setup[open] summary { margin-bottom: 8px; }
   padding: 6px 10px;
   font-size: 0.85rem;
   line-height: 1.35;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 100%;
   z-index: 3;
 }
 .tooltip[hidden] { display: none; }
@@ -341,3 +372,73 @@ footer p { margin: 0.5em 0; }
 }
 
 .explainer .chart-card h2 { font-size: 1.05rem; margin: 0; }
+
+/* ---------- The pool game ---------- */
+
+.levels { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 12px; }
+.level-tab {
+  font: inherit;
+  font-size: 0.92rem;
+  min-height: 40px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.level-tab:hover { background: var(--cell-hover); }
+.level-tab[aria-current="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.level-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.level-card h2 { font-size: 1.2rem; margin: 0 0 6px; }
+.level-card p { margin: 0 0 8px; max-width: 52em; }
+.level-result { color: var(--ink); }
+.level-card .row { margin-top: 4px; }
+.level-card .btn[hidden] { display: none; }
+
+.setup h3 { font-size: 0.95rem; margin: 0 0 6px; }
+.setup[hidden] { display: none; }
+
+.world.pool-theme .pool .basin { fill: var(--basin); stroke: var(--basin-edge); stroke-width: 0.04; }
+.world.pool-theme .pool .water { fill: var(--pool-water); }
+.world.pool-theme .pool .spill { fill: none; stroke: var(--water); stroke-width: 0.09; stroke-linecap: round; }
+.world.pool-theme .pool .count { fill: #ffffff; font-size: 0.34px; font-weight: 750; }
+.world.pool-theme .pool.overflow .basin { stroke: var(--water); }
+.world .flood rect { fill: var(--flood); opacity: 0; transition: opacity 650ms ease-out; }
+.world .bucket .pail { fill: var(--pail); stroke: var(--pail-edge); stroke-width: 0.035; stroke-linejoin: round; }
+.world .bucket .surface { fill: var(--water); stroke: var(--pail-edge); stroke-width: 0.03; }
+.world .bucket .handle { fill: none; stroke: var(--pail-edge); stroke-width: 0.035; stroke-linecap: round; }
+.world .bucket .band { stroke: var(--pail-edge); stroke-width: 0.03; opacity: 0.55; }
+.world .spot { stroke: var(--sight-edge); stroke-width: 0.03; stroke-dasharray: 0.09 0.06; }
+.world .banner { opacity: 0; transition: opacity 150ms ease-out; }
+.world .banner.show { opacity: 1; transition: opacity 400ms ease-out 500ms; }
+.world .banner rect { fill: var(--flood-banner); }
+.world .banner text { fill: #ffffff; font-size: 0.36px; font-weight: 800; letter-spacing: 0.06em; }
+
+.kind-flood { fill: var(--k-hidden); background: var(--k-hidden); }
+.verdict.v-flood { border-left-color: var(--k-hidden); }
+
+.table-wrap.static { max-height: none; }
+table.score td:nth-child(2) { font-weight: 650; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .world .flood rect, .world .banner { transition: none; }
+}
+
+.world .sight-stop { stroke: var(--sight-edge); stroke-width: 0.05; }
+.world .cells.editable .cell:focus { outline: none; stroke: var(--focus); stroke-width: 0.07; }
+.btn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+#level-title:focus { outline: none; }
+#level-title:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
