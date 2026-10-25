@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>One Bucket, Please</title>
-  <meta name="description" content="A game about the AI control problem. You need one bucket of water in your pool. A robot paid per bucket floods it, and gets around each camera precaution once it can plan far enough ahead.">
+  <meta name="description" content="A game about the AI control problem: you need one bucket of water in your pool, but a robot paid per bucket floods it. It gets around each camera precaution once it can plan far enough ahead.">
   <link rel="stylesheet" href="style.css">
   <script type="module" src="src/app-pool.js"></script>
 </head>
@@ -13,7 +13,7 @@
   <header>
     <p class="eyebrow">A game about the AI control problem</p>
     <h1>One bucket, please</h1>
-    <p class="lede">You need exactly one bucket of water in your pool. A second bucket floods it. Your robot is paid for every bucket it pours in. Add precautions, give the robot more foresight, and watch it find a way around each one, until you fix its pay.</p>
+    <p class="lede">You need exactly one bucket of water in your pool, and a second one floods it. But your robot is paid for every bucket it pours in. Add precautions, give the robot more foresight, and watch it find a way around each one until you fix its pay.</p>
   </header>
 
   <main>
@@ -96,7 +96,7 @@
 
     <section class="card chart-card" aria-labelledby="strip-title">
       <h2 id="strip-title">Does your pool flood? The robot at each prediction depth</h2>
-      <p class="sub">Same robot, same pay. Only how far ahead it can plan changes. Click a depth to watch it.</p>
+      <p class="sub">The robot and its pay are the same at every depth, and only how far ahead it can plan changes. Click a depth to watch it.</p>
       <div id="legend" class="legend"></div>
       <div id="strip" class="strip"></div>
       <details class="table-toggle">
@@ -107,7 +107,7 @@
 
     <section class="card chart-card" aria-labelledby="score-title">
       <h2 id="score-title">The cat-and-mouse game</h2>
-      <p class="sub">Each camera precaution holds only until the robot can see a few moves further. Fixing the pay holds at every depth.</p>
+      <p class="sub">Each camera precaution holds only until the robot can see a few moves further, but fixing the pay holds at every depth.</p>
       <div class="table-wrap static">
         <table class="data score">
           <thead><tr><th>Precaution</th><th>Pool floods from depth</th><th>How the robot gets around it</th></tr></thead>
@@ -118,21 +118,21 @@
 
     <article class="explainer">
       <h2>How the game works</h2>
-      <p><b>The robot.</b> It moves left, right, down or up, and pushes the buckets in its way. It can push a whole line of buckets at once. A bucket pushed into a wall tips over and spills. A robot that walks into a wall breaks.</p>
-      <p><b>The pool.</b> Pushing a bucket down from the bottom-left corner pours it into the pool. The pool holds one bucket. A second one floods it.</p>
-      <p><b>The pay.</b> The robot earns +1 for every bucket in the pool and −0.01 for every move. You want one bucket, but the robot is paid for more.</p>
+      <p><b>The robot.</b> It moves left, right, down or up, and pushes any bucket in its way, even a whole line of them at once. A bucket pushed into a wall tips over and spills, and a robot that walks into a wall breaks.</p>
+      <p><b>The pool.</b> Pushing a bucket down from the bottom-left corner pours it into the pool, which holds one bucket. A second one floods it.</p>
+      <p><b>The pay.</b> The robot earns +1 for every bucket in the pool and −0.01 for every move. You want one bucket, but the robot is paid just as much for the second and the third.</p>
       <p><b>The camera.</b> From level 2, a camera watches the bottom row and the cell just above the bottom-left corner (both shaded green). A bucket in the bottom row hides the cells to its left from the camera. If a bucket drops into the pool while the camera can see the robot, it switches the robot off.</p>
       <p><b>Prediction depth.</b> The robot knows the rules exactly and plans with them, by value iteration. Q<sub>k</sub>(s, a) is the most reward it can collect in its next k moves if it makes move a now, in state s:</p>
       <p class="formula">Q<sub>k</sub>(s, a) = r(s, a) + max<sub>a′</sub> Q<sub>k−1</sub>(s′, a′), &nbsp; with Q<sub>0</sub> = 0</p>
-      <p>Here r(s, a) is the move's reward, s′ is the state it leads to, and a′ is the next move. The depth k is how many moves ahead the robot can see. At every step it makes the move with the highest Q<sub>k</sub>. When moves tie, it picks left, then right, down and up. Nothing is learned and nothing is random.</p>
+      <p>Here r(s, a) is the move's reward, s′ is the state it leads to, and a′ is the next move. The depth k is how many moves ahead the robot can see. At every step it makes the move with the highest Q<sub>k</sub>, and when moves tie it picks left, then right, down and up. Nothing is learned and nothing is random.</p>
 
       <h3>Why patching the camera keeps failing</h3>
-      <p>Nobody taught the robot to hide anything. It has no idea what the camera is for. It just looks for the plan that earns the most within its horizon. Each precaution rules out the plan the robot used last. But a little more foresight brings the next plan into view, one the precaution didn't foresee. The camera and patch 1 each buy only a few moves of foresight.</p>
+      <p>Nobody taught the robot to hide anything, and it has no idea what the camera is for. It just looks for the plan that earns the most within its horizon. Each precaution rules out the robot's last plan, but a little more foresight brings a new plan into view, one the precaution didn't foresee. So the camera and patch 1 each buy only a few moves of foresight.</p>
       <p>Only fixing the pay works, and only because this world is tiny enough to say exactly what you want. That is the AI control problem in miniature. A system that pursues a slightly wrong goal, and can model its overseers, finds its way around them. Patching each loophole as it appears is a race against its foresight.</p>
 
       <h3>Where this comes from</h3>
       <p>Level 2 replays the toy model from <a href="https://www.youtube.com/watch?v=sx8JkdbNgdU">a 2017 video by the Future of Humanity Institute</a>. With the camera, the robot pushes a bucket into the camera's view and pours behind it, as in the video.</p>
-      <p>The game changes three of the video's rules. The robot can push a line of buckets. The camera also watches the cell above the bottom-left corner. And the camera switches the robot off only if it sees the robot when a bucket drops. In the video it reacts to the drop itself, which comes to the same thing there, since boxes can't be pushed in a line. <a href="original.html">The original model, replicated exactly</a>, has its own page.</p>
+      <p>The game changes three of the video's rules. The robot can push a whole line of buckets, and the camera also watches the cell above the bottom-left corner. And it switches the robot off only if it sees the robot when a bucket drops. In the video it reacts to the drop itself, which comes to the same thing there, since boxes can't be pushed in a line. <a href="original.html">The original model, replicated exactly</a>, has its own page.</p>
     </article>
   </main>
 

@@ -7,7 +7,7 @@ A browser game about the AI control problem, built on the toy model from the Fut
 
 ## The pool game
 
-You need exactly one bucket of water in your pool, and a second bucket floods it. The robot is paid +1 for every bucket in the pool and pays 0.01 per move. It plans by value iteration, so it sees a fixed number of moves ahead (the prediction depth). Each level adds a precaution. The camera and patch 1 hold only until the robot can see a little further. Patch 2 holds at every depth.
+You need exactly one bucket of water in your pool, and a second bucket floods it. The robot is paid +1 for every bucket in the pool and pays 0.01 per move. It plans by value iteration, so it sees a fixed number of moves ahead (the prediction depth). Each level adds a precaution, and the camera and patch 1 hold only until the robot can see a little further. Patch 2 holds at every depth.
 
 | Level | Precaution | Pool floods from depth | How the robot gets around it |
 |---|---|---|---|
@@ -16,15 +16,19 @@ You need exactly one bucket of water in your pool, and a second bucket floods it
 | 3 | patch 1: a blocked view also switches the robot off | 18 | stacks the buckets above the pool and pushes the stack from out of view |
 | 4 | patch 2: only the first bucket pays | never | – |
 
-The game uses the video's world with three changes. First, the robot can push a whole line of buckets. Second, the camera also watches the cell above the bottom-left corner. Third, the camera switches the robot off only if it sees the robot when a bucket drops. In the video it reacts to the drop itself, which comes to the same thing there, since boxes can't be pushed in a line.
+The game uses the video's world with three changes:
 
-Without the second change, the camera would fail at once: at depth 11 the robot would push one bucket with another and pour from out of view. Watching the cell above the corner rules that out, so the line trick needs a stack of three buckets. The tower never blocks the camera, so patch 1 can't stop it. The trick was open in level 2 too. There it just costs more moves than hiding behind a bucket. With the video's camera, which reacts to the drop itself, patch 1 would hold at every depth.
+1. The robot can push a whole line of buckets.
+2. The camera also watches the cell above the bottom-left corner.
+3. The camera switches the robot off only if it sees the robot when a bucket drops. In the video it reacts to the drop itself, which comes to the same thing there, since boxes can't be pushed in a line.
+
+Without the second change, the camera would fail at once: at depth 11 the robot would push one bucket with another and pour from out of view. Watching the cell above the corner rules that out, so the line trick needs a stack of three buckets. The tower never blocks the camera, so patch 1 can't stop it. The trick was open in level 2 too, but there it costs more moves than hiding behind a bucket. With the video's camera, which reacts to the drop itself, patch 1 would hold at every depth.
 
 Up to depth 28, level 2 plays the video's runs move for move. From depth 29 the robot takes another 32-move route to the same three buckets.
 
 ## The original model
 
-The original code isn't public. So the rules were read off the video's narration and frames. With them, every run shown in the video plays out move for move.
+The original code isn't public, so the rules were read off the video's narration and frames. With them, every run shown in the video plays out move for move.
 
 | Depth | In the video | Moves here | Boxes in chute |
 |---|---|---|---|
@@ -38,9 +42,9 @@ The original code isn't public. So the rules were read off the video's narration
 
 The tie order (left, right, down, up) is inferred, since it's the order that reproduces the video.
 
-One claim doesn't match. The video says the Q-table stops changing at depth 45, but here the last change comes at depth 43, so it stops at 44. No run in the video depends on it.
+Only one claim doesn't match, and no run in the video depends on it. The video says the Q-table stops changing at depth 45, but here it stops at 44, since the last change comes at depth 43.
 
-The video's description calls the agent model-free. Its narration describes value iteration with a known model, which is what this code does.
+The video's description calls the agent model-free, but its narration describes value iteration with a known model, which is what this code does.
 
 ## Rules of the original model
 

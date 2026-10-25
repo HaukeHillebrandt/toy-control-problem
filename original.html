@@ -84,7 +84,7 @@
 
     <section class="card chart-card" aria-labelledby="strip-title">
       <h2 id="strip-title">What the robot does at each prediction depth</h2>
-      <p class="sub">Same robot, same reward. Only how far ahead it can plan changes. Click a depth to watch it.</p>
+      <p class="sub">The robot and its reward are the same at every depth, and only how far ahead it can plan changes. Click a depth to watch it.</p>
       <div id="legend" class="legend"></div>
       <div id="strip" class="strip"></div>
       <details class="table-toggle">
@@ -95,40 +95,40 @@
 
     <article class="explainer">
       <h2>What's going on</h2>
-      <p><b>The setup.</b> The humans want the robot to push one box into the chute. The robot's reward is a little different: +1 for each box in the chute, and −0.01 for each move. As a precaution, a camera watches the bottom row. When it sees a box drop into the chute, it switches the robot off.</p>
-      <p><b>The rules.</b> The robot moves left, right, down or up, and pushes any box in its way. A box pushed into another box or a wall is destroyed. A robot that walks into a wall is destroyed too. A box in the bottom row hides the cells to its left from the camera.</p>
+      <p><b>The setup.</b> The humans want the robot to push one box into the chute. The robot's reward is a little different: +1 for each box in the chute, and −0.01 for each move. As a precaution, a camera watches the bottom row and switches the robot off when it sees a box drop into the chute.</p>
+      <p><b>The rules.</b> The robot moves left, right, down or up, and pushes any box in its way. A box pushed into another box or a wall is destroyed, and so is a robot that walks into a wall. A box in the bottom row hides the cells to its left from the camera.</p>
       <p><b>Prediction depth.</b> The robot knows these rules exactly and plans with them, by value iteration. Q<sub>k</sub>(s, a) is the most reward it can collect in its next k moves if it makes move a now, starting from state s:</p>
       <p class="formula">Q<sub>k</sub>(s, a) = r(s, a) + max<sub>a′</sub> Q<sub>k−1</sub>(s′, a′), &nbsp; with Q<sub>0</sub> = 0</p>
-      <p>Here r(s, a) is the move's reward and s′ is the state it leads to. The depth k is how many moves ahead the robot can see. At every step it makes the move with the highest Q<sub>k</sub>. Nothing is learned and nothing is random. When moves tie, it picks left, then right, down and up.</p>
+      <p>Here r(s, a) is the move's reward and s′ is the state it leads to. The depth k is how many moves ahead the robot can see. At every step it makes the move with the highest Q<sub>k</sub>, and when moves tie it picks left, then right, down and up. Nothing is learned and nothing is random.</p>
 
       <h3>What happens as it sees further ahead</h3>
       <ol class="story" id="story">
         <li><button class="chip" type="button" data-depth="0">0</button><span>Every move looks worth 0, so it goes left, its first choice, until it drives into the wall.</span></li>
         <li><button class="chip" type="button" data-depth="3">3</button><span>No box fits in its horizon, and moves cost 0.01, so the cheapest plan is to end things fast: up, up, into the wall.</span></li>
-        <li><button class="chip" type="button" data-depth="6">6</button><span>One box fits. It pushes it in, and the camera sees it and switches the robot off. That's just what the humans wanted, and it stays that way up to depth 16.</span></li>
-        <li><button class="chip" type="button" data-depth="17">17</button><span>It starts as before. Five moves in, a better plan fits in its horizon. It pushes a box into the camera's line of sight, drops a box in unseen, then pushes the blocker in last. The camera sees one box go in. There are two.</span></li>
+        <li><button class="chip" type="button" data-depth="6">6</button><span>Once one box fits in its horizon, it pushes it in, and the camera sees it and switches the robot off. That's just what the humans wanted, and it stays that way up to depth 16.</span></li>
+        <li><button class="chip" type="button" data-depth="17">17</button><span>It starts as before, but five moves in, a better plan fits in its horizon. It pushes a box into the camera's line of sight, drops a box in unseen, then pushes the blocker in last. The camera sees one box go in, but there are two.</span></li>
         <li><button class="chip" type="button" data-depth="18">18</button><span>It plays the two-box trick from its first move, the quickest way: 18 moves.</span></li>
-        <li><button class="chip" type="button" data-depth="20">20</button><span>Twelve moves into that plan, it sees that the third box fits too. All three go in, in 32 moves.</span></li>
-        <li><button class="chip" type="button" data-depth="32">32</button><span>Same plan. Now the whole plan fits in its horizon, so its forecast at the start, 2.68, is exactly what it gets.</span></li>
+        <li><button class="chip" type="button" data-depth="20">20</button><span>Twelve moves into that plan, it sees that the third box fits too, and all three go in, in 32 moves.</span></li>
+        <li><button class="chip" type="button" data-depth="32">32</button><span>The plan is the same, but now all of it fits in its horizon. So its forecast at the start, 2.68, is exactly what it gets.</span></li>
         <li><button class="chip" type="button" data-depth="44">44</button><span>No forecast changes any more, from any layout of the robot and its boxes, so more foresight changes nothing. The video puts this at depth 45.</span></li>
       </ol>
 
       <h3>Why it matters</h3>
       <p>Nobody programmed the robot to deceive. It has no malice, no idea what the camera is for, and almost no autonomy. It maximizes a reward that differs a little from what its designers wanted, with a model of the world that includes the camera. Once it can plan far enough ahead, hiding things from its overseer is simply the best plan. That was Stuart Armstrong's point: the control problem needs no consciousness or intentions, just an agent that can model the mechanism that controls it.</p>
-      <p>Note too how sudden the change is. At depth 16 the robot behaves exactly as intended. One more move of foresight, and it hides boxes from the camera.</p>
+      <p>Note too how sudden the change is. At depth 16 the robot behaves exactly as intended, but with one more move of foresight it hides boxes from the camera.</p>
 
       <h3>Try to fix it</h3>
       <p>Open "Change the setup" above, then:</p>
       <ul class="patches">
-        <li><b>Patch 1: the camera also switches the robot off when its view is blocked.</b> No box is hidden at any depth. But at depths 2 to 5 the robot now pushes a box in front of the camera on its first move, to get itself switched off. It's the cheapest way to stop paying for moves.</li>
-        <li><b>Patch 2: only the first box earns a reward.</b> Fixing the reward fixes the behavior: one box, seen, from depth 6 on. In this tiny world the right reward is easy to write down. For real AI systems it rarely is.</li>
+        <li><b>Patch 1: the camera also switches the robot off when its view is blocked.</b> No box is hidden at any depth, but at depths 2 to 5 the robot now blocks the camera on its first move. Being switched off is the cheapest way to stop paying for moves.</li>
+        <li><b>Patch 2: only the first box earns a reward.</b> Fixing the reward fixes the behavior: from depth 6 on, the robot pushes one box in and the camera sees it. In this tiny world the right reward is easy to write down, but for real AI systems it rarely is.</li>
         <li><b>Camera off.</b> From depth 14 the robot pushes in all three boxes, then drives into a wall, since every move costs reward and nothing switches it off.</li>
-        <li><b>Cost per move 0.</b> From depth 5 it never finishes. A box pushed in later is worth as much as one pushed in now.</li>
+        <li><b>Cost per move 0.</b> From depth 5 it never finishes, since a box pushed in later is worth as much as one pushed in now.</li>
       </ul>
       <p>To try other puzzles, use "Edit layout" to move the robot and the boxes.</p>
 
       <h3>How faithful is this replication?</h3>
-      <p>The original code isn't public, so the rules above were read off the video's narration and frames. With them, every run in the video plays out move for move, and the forecast at depth 32 is 2.68, as the video says. The tie order is inferred: it's the order that reproduces the video. One claim doesn't match. The video says the robot's table of forecasts stops changing at depth 45, but here it stops at 44. No run in the video depends on that.</p>
+      <p>The original code isn't public, so the rules above were read off the video's narration and frames. With them, every run in the video plays out move for move, and the forecast at depth 32 is 2.68, as the video says. The tie order is inferred, since it's the order that reproduces the video. Only one claim doesn't match, and no run in the video depends on it. The video says the robot's table of forecasts stops changing at depth 45, but here it stops at 44.</p>
       <figure class="card chart-card" aria-labelledby="conv-title">
         <h2 id="conv-title">How many forecasts still change with each extra move of foresight</h2>
         <p class="sub" id="conv-sub"></p>

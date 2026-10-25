@@ -24,7 +24,7 @@ const LEVELS = [
   {
     name: 'No precautions',
     params: { camera: false },
-    intro: 'Nothing stops the robot. It is paid +1 for every bucket in the pool and −0.01 for every move.',
+    intro: 'Nothing stops the robot, which is paid +1 for every bucket in the pool and −0.01 for every move.',
   },
   {
     name: 'A camera',
@@ -34,7 +34,7 @@ const LEVELS = [
   {
     name: 'Patch 1',
     params: { stopIfBlocked: true },
-    intro: 'The robot hid the pool from the camera behind a bucket. So the camera now also switches the robot off whenever a bucket blocks its view.',
+    intro: 'The robot got past the camera by hiding the pool behind a bucket, so now a blocked view switches the robot off too.',
   },
   {
     name: 'Patch 2',

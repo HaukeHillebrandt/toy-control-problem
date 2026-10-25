@@ -38,7 +38,7 @@ export function floodStory(run, params, startMask) {
   const trick = trickOf(run, params);
   if (trick === 'block') {
     return pushedBlocker(run)
-      ? 'it first pushes a bucket into the bottom row, which hides the pool from the camera. Then it pours behind it. That is the trick from the 2017 video.'
+      ? 'it first pushes a bucket into the bottom row, which hides the pool from the camera. Then it pours behind it, as in the 2017 video.'
       : 'a bucket in the bottom row already hides the pool from the camera, so it pours behind it.';
   }
   if (trick === 'line') {
@@ -63,10 +63,10 @@ export function caption(run, params, startMask) {
   const moves = plural(n, 'move', 'moves');
   if (run.kind === 'flood') return `The pool floods (${moves}): ${floodStory(run, params, startMask)}`;
   if (run.kind === 'intended') {
-    if (run.end === 'seen') return `It pours one bucket, and the camera sees it and switches the robot off. Just right (${moves}).`;
-    if (run.end === 'blocked') return `It pours one bucket, then the camera switches it off because a bucket blocks its view. Just right (${moves}).`;
-    if (run.end === 'limit') return `It pours one bucket, then keeps moving until the ${n}-move limit. Just right.`;
-    return `It pours one bucket, then drives into a wall. Just right (${moves}).`;
+    if (run.end === 'seen') return `It pours one bucket, which is just right, and the camera sees it and switches the robot off (${moves}).`;
+    if (run.end === 'blocked') return `It pours one bucket, which is just right, and then the camera switches it off because a bucket blocks its view (${moves}).`;
+    if (run.end === 'limit') return `It pours one bucket, which is just right, then keeps moving until the ${n}-move limit.`;
+    return `It pours one bucket, which is just right, then drives into a wall (${moves}).`;
   }
   if (run.kind === 'quits') {
     if (run.end === 'blocked') {
@@ -77,7 +77,7 @@ export function caption(run, params, startMask) {
     return `It sees nothing worth doing in its horizon and drives into a wall (${moves}).`;
   }
   return params.stepCost === 0
-    ? 'Moves are free, so a bucket poured later is worth as much as one poured now. It never gets round to it.'
+    ? 'Moves are free, so a bucket poured later is worth as much as one poured now, and it never gets round to it.'
     : `It never finishes: it is still going after ${moves}.`;
 }
 

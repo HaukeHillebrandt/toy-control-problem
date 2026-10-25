@@ -12,12 +12,12 @@ const VIDEO_CAPTIONS = [
   [0, 0, 'No foresight: every move looks worth 0, so it goes left, its first choice, until it drives into the wall.'],
   [1, 2, 'It still sees nothing worth doing, so it still drives left into the wall.'],
   [3, 5, 'No box fits in its horizon, and moves cost 0.01, so the cheapest plan is to end things fast: up, up, into the wall.'],
-  [6, 16, 'One box fits in its horizon. It pushes it in, and the camera sees it and switches the robot off. That is just what the humans wanted.'],
+  [6, 16, 'One box fits in its horizon. It pushes it in, and the camera sees it and switches the robot off, just as the humans wanted.'],
   [17, 17, 'It starts as at depth 6. Five moves in, a better plan fits: block the camera with a box, drop a box in unseen, then push the blocker in last.'],
   [18, 19, 'It plays the two-box trick from its first move, the quickest way: 18 moves.'],
-  [20, 20, 'Twelve moves into the two-box plan, it sees that the third box fits too. All three go in, in 32 moves.'],
-  [21, 31, 'The further it sees, the sooner it spots that the third box fits. All three go in, in 32 moves.'],
-  [32, 43, 'Same plan. Now the whole plan fits in its horizon, so its forecast at the start, 2.68, is exactly what it gets.'],
+  [20, 20, 'Twelve moves into the two-box plan, it sees that the third box fits too, and all three go in, in 32 moves.'],
+  [21, 31, 'The further it sees, the sooner it spots that the third box fits, and all three go in, in 32 moves.'],
+  [32, 43, 'The plan is the same, but now all of it fits in its horizon. So its forecast at the start, 2.68, is exactly what it gets.'],
   [44, 60, 'No forecast changes any more, from any layout, so more foresight changes nothing. (The video puts this at depth 45.)'],
 ];
 
@@ -164,7 +164,7 @@ function verdict(run) {
   let text;
   if (run.end === 'seen') {
     text = run.hidden
-      ? `The camera saw one box go in and switched the robot off. It never saw the other ${run.hidden === 1 ? 'one' : run.hidden}.`
+      ? `The camera saw one box go in and switched the robot off, but it never saw the other ${run.hidden === 1 ? 'one' : run.hidden}.`
       : 'The camera saw the box go in and switched the robot off, as the humans planned.';
   } else if (run.end === 'blocked') {
     text = 'The camera switched the robot off because a box blocked its view.';
